@@ -9,17 +9,20 @@ window.addEventListener('load', () => {
     let shootingStars = []; 
     let activeName = "G_Frost"; 
 
-    // Variables pour l'interaction au clic (Onde de choc)
     let mouse = {
         x: null,
         y: null,
-        radius: 120, // Zone d'impact du clic
+        radius: 120, 
         isActive: false,
         timer: 0
     };
 
-    // Variable pour l'évolution globale des couleurs (Nébuleuse)
-    let globalHueBase = 200; 
+    // LOGIQUE TECHNIQUE DES COULEURS :
+    // Le spectre HSL va de 0 à 360. 
+    // Pour changer visiblement de couleur toutes les 2 secondes (à 60 images par seconde),
+    // on augmente la teinte d'environ 2.5 à 3 unités par seconde.
+    let globalHueBase = 0; 
+    const hueSpeed = 0.05; // Vitesse fluide et constante pour voir le changement toutes les 2s
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -124,8 +127,8 @@ window.addEventListener('load', () => {
                 this.isBright = false;
             }
             
-            // Teinte de départ unique légèrement décalée
-            this.hueOffset = Math.random() * 30 - 15; 
+            // Un petit décalage pour que toutes les étoiles ne soient pas strictement identiques
+            this.hueOffset = Math.random() * 20 - 10; 
             this.ease = fromShootingStar ? 0.08 : (Math.random() * 0.05 + 0.03); 
             
             this.twinkleSpeed = Math.random() * 0.04 + 0.01;
@@ -157,14 +160,12 @@ window.addEventListener('load', () => {
             }
 
             if (this.isCaptured) {
-                // AMÉLIORATION INTERACTIVE : Gestion de la poussée au clic
                 if (mouse.isActive) {
                     let dx = this.x - mouse.x;
                     let dy = this.y - mouse.y;
                     let distance = Math.sqrt(dx * dx + dy * dy);
                     
                     if (distance < mouse.radius) {
-                        // Calcule de la force de poussée (plus on est près, plus c'est fort)
                         let force = (mouse.radius - distance) / mouse.radius;
                         let pushX = (dx / distance) * force * 15;
                         let pushY = (dy / distance) * force * 15;
@@ -174,7 +175,6 @@ window.addEventListener('load', () => {
                     }
                 }
 
-                // Retour fluide vers la position cible (effet élastique/gravitationnel)
                 this.x += (this.targetX - this.x) * this.ease;
                 this.y += (this.targetY - this.y) * this.ease;
                 
@@ -203,7 +203,7 @@ window.addEventListener('load', () => {
                 currentGlow = 8 + Math.sin(this.glowPulse) * 4;
             }
 
-            // AMÉLIORATION COULEUR : Teinte dynamique basée sur le cycle global "Nébuleuse"
+            // MODIFICATION ICI : On applique le cycle complet de 0 à 360 degrés
             let currentHue = (globalHueBase + this.hueOffset) % 360;
 
             ctx.fillStyle = `hsla(${currentHue}, 100%, ${this.isBright ? 88 : 70}%, ${currentAlpha})`;
@@ -226,23 +226,20 @@ window.addEventListener('load', () => {
         ctx.fillStyle = 'rgba(6, 6, 14, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // Faire évoluer la couleur globale très lentement (effet aurore boréale)
-        // Cycle principalement entre le bleu (200), le violet (270) et le rose magenta (320)
-        globalHueBase += 0.05;
-        if (globalHueBase > 330) {
-            globalHueBase = 190; // Revient au bleu-turquoise
+        // MODIFICATION ICI : Rythme accéléré et progressif sur TOUT l'arc-en-ciel
+        globalHueBase += hueSpeed;
+        if (globalHueBase >= 360) {
+            globalHueBase = 0; 
         }
 
-        // Gestion du timer du clic
         if (mouse.isActive) {
             mouse.timer++;
-            if (mouse.timer > 15) { // L'onde de choc dure 15 frames
+            if (mouse.timer > 15) { 
                 mouse.isActive = false;
                 mouse.timer = 0;
             }
         }
         
-        // 1. Étoiles de fond
         backgroundStars.forEach(star => {
             star.alpha += star.speed;
             if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
@@ -250,7 +247,6 @@ window.addEventListener('load', () => {
             ctx.fillRect(star.x, star.y, star.size, star.size);
         });
 
-        // 2. Étoiles filantes + Remplacement
         addShootingStar();
         shootingStars.forEach((s, index) => {
             s.x += s.speedX;
@@ -279,7 +275,6 @@ window.addEventListener('load', () => {
             if (s.opacity <= 0 || s.x > canvas.width || s.y > canvas.height) {
                 shootingStars.splice(index, 1);
             } else {
-                // L'étoile filante adopte aussi la couleur de la nébuleuse
                 ctx.strokeStyle = `hsla(${globalHueBase}, 100%, 80%, ${Math.max(0, s.opacity)})`;
                 ctx.lineWidth = 1.8;
                 ctx.beginPath();
@@ -289,7 +284,6 @@ window.addEventListener('load', () => {
             }
         });
         
-        // 3. Étoiles du prénom
         particlesArray = particlesArray.filter(p => !p.isEjected || p.size > 0);
         particlesArray.forEach(particle => {
             particle.update();
@@ -299,8 +293,6 @@ window.addEventListener('load', () => {
         requestAnimationFrame(animate);
     }
 
-    // ÉCOUTEURS D'ÉVÉNEMENTS POUR L'EXPLOSION AU CLIC
-    // Pour PC (Souris)
     canvas.addEventListener('mousedown', (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
@@ -308,7 +300,6 @@ window.addEventListener('load', () => {
         mouse.timer = 0;
     });
 
-    // Pour Mobile (Tactile)
     canvas.addEventListener('touchstart', (e) => {
         if (e.touches.length > 0) {
             mouse.x = e.touches[0].clientX;
