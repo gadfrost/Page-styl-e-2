@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Constellation Prénom - Style G</title>
+    <title>Constellation Prénom Interactive</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Le terrain de jeu pour nos étoiles -->
     <canvas id="animationCanvas"></canvas>
 
-    <!-- Chargement correct du script -->
+    <div class="interface-container">
+        <input type="text" id="nameInput" placeholder="Entre ton prénom..." maxlength="15">
+        <button id="generateBtn">Créer la constellation</button>
+    </div>
+
     <script src="script.js" defer></script>
 </body>
 </html>
