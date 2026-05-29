@@ -9,6 +9,18 @@ window.addEventListener('load', () => {
     let shootingStars = []; 
     let activeName = "G_Frost"; 
 
+    // Variables pour l'interaction au clic (Onde de choc)
+    let mouse = {
+        x: null,
+        y: null,
+        radius: 120, // Zone d'impact du clic
+        isActive: false,
+        timer: 0
+    };
+
+    // Variable pour l'évolution globale des couleurs (Nébuleuse)
+    let globalHueBase = 200; 
+
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -16,28 +28,22 @@ window.addEventListener('load', () => {
         initStarText(activeName);
     }
 
-    // AMÉLIORATION : Plus d'étoiles en arrière-plan et un peu plus visibles
     function initBackgroundStars() {
         backgroundStars = [];
-        // Augmentation du nombre d'étoiles de fond (multiplié par ~2.5)
         const count = Math.min(window.innerWidth * 0.2, 180);
         for (let i = 0; i < count; i++) {
             backgroundStars.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                size: Math.random() * 1.5 + 0.3, // Un poil plus grandes
-                alpha: Math.random() * 0.8 + 0.2, // Plus lumineuses de base
+                size: Math.random() * 1.5 + 0.3,
+                alpha: Math.random() * 0.8 + 0.2,
                 speed: Math.random() * 0.015 + 0.005
             });
         }
     }
 
-    // AMÉLIORATION : Plus d'étoiles filantes et trajectoires qui croisent le centre
     function addShootingStar() {
-        // Augmentation de la probabilité (passée de 0.01 à 0.025) pour en voir plus souvent
         if (shootingStars.length < 3 && Math.random() < 0.025) { 
-            const isMobile = canvas.width < 768;
-            // Elles visent globalement la zone centrale où se trouve le prénom
             const targetX = canvas.width / 2 + (Math.random() * 200 - 100);
             const targetY = canvas.height * 0.35 + (Math.random() * 100 - 50);
             
@@ -96,14 +102,12 @@ window.addEventListener('load', () => {
             this.targetY = targetY;
             
             if (fromShootingStar) {
-                // Si elle vient d'une étoile filante, elle démarre de là où l'étoile filante s'est éteinte
                 this.x = startX;
                 this.y = startY;
                 this.vx = 0;
                 this.vy = 0;
-                this.isCaptured = true; // Déjà sur place ou presque
+                this.isCaptured = true; 
             } else {
-                // Arrivée cosmique initiale classique
                 this.x = -20 - (Math.random() * 400);
                 this.y = Math.random() * canvas.height;
                 this.vx = Math.random() * 7 + 5; 
@@ -120,14 +124,14 @@ window.addEventListener('load', () => {
                 this.isBright = false;
             }
             
-            this.hue = Math.random() * 25 + 195; 
+            // Teinte de départ unique légèrement décalée
+            this.hueOffset = Math.random() * 30 - 15; 
             this.ease = fromShootingStar ? 0.08 : (Math.random() * 0.05 + 0.03); 
             
             this.twinkleSpeed = Math.random() * 0.04 + 0.01;
             this.twinkleAngle = Math.random() * Math.PI * 2;
             this.glowPulse = Math.random() * Math.PI;
 
-            // Système d'éjection (quand l'étoile doit partir)
             this.isEjected = false;
             this.evacuationVx = 0;
             this.evacuationVy = 0;
@@ -136,7 +140,6 @@ window.addEventListener('load', () => {
         eject() {
             this.isEjected = true;
             this.isCaptured = false;
-            // Direction de fuite aléatoire et rapide vers le bas ou les côtés
             this.evacuationVx = (Math.random() * 4 - 2);
             this.evacuationVy = Math.random() * 4 + 2; 
         }
@@ -145,7 +148,7 @@ window.addEventListener('load', () => {
             if (this.isEjected) {
                 this.x += this.evacuationVx;
                 this.y += this.evacuationVy;
-                this.size -= 0.01; // Elle rétrécit en partant
+                this.size -= 0.01; 
                 return;
             }
 
@@ -154,6 +157,24 @@ window.addEventListener('load', () => {
             }
 
             if (this.isCaptured) {
+                // AMÉLIORATION INTERACTIVE : Gestion de la poussée au clic
+                if (mouse.isActive) {
+                    let dx = this.x - mouse.x;
+                    let dy = this.y - mouse.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < mouse.radius) {
+                        // Calcule de la force de poussée (plus on est près, plus c'est fort)
+                        let force = (mouse.radius - distance) / mouse.radius;
+                        let pushX = (dx / distance) * force * 15;
+                        let pushY = (dy / distance) * force * 15;
+                        
+                        this.x += pushX;
+                        this.y += pushY;
+                    }
+                }
+
+                // Retour fluide vers la position cible (effet élastique/gravitationnel)
                 this.x += (this.targetX - this.x) * this.ease;
                 this.y += (this.targetY - this.y) * this.ease;
                 
@@ -174,7 +195,7 @@ window.addEventListener('load', () => {
             if (this.isCaptured) {
                 currentAlpha = 0.7 + Math.sin(this.twinkleAngle) * 0.3;
             } else if (this.isEjected) {
-                currentAlpha = Math.max(0, this.size); // Finit par disparaître
+                currentAlpha = Math.max(0, this.size);
             }
 
             let currentGlow = 0;
@@ -182,11 +203,14 @@ window.addEventListener('load', () => {
                 currentGlow = 8 + Math.sin(this.glowPulse) * 4;
             }
 
-            ctx.fillStyle = `hsla(${this.hue}, 100%, ${this.isBright ? 88 : 70}%, ${currentAlpha})`;
+            // AMÉLIORATION COULEUR : Teinte dynamique basée sur le cycle global "Nébuleuse"
+            let currentHue = (globalHueBase + this.hueOffset) % 360;
+
+            ctx.fillStyle = `hsla(${currentHue}, 100%, ${this.isBright ? 88 : 70}%, ${currentAlpha})`;
             
             if (currentGlow > 0) {
                 ctx.shadowBlur = currentGlow;
-                ctx.shadowColor = `hsl(${this.hue}, 100%, 70%)`;
+                ctx.shadowColor = `hsl(${currentHue}, 100%, 70%)`;
             }
             
             ctx.beginPath();
@@ -202,7 +226,23 @@ window.addEventListener('load', () => {
         ctx.fillStyle = 'rgba(6, 6, 14, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // 1. Étoiles de fond (Toile de l'espace enrichie)
+        // Faire évoluer la couleur globale très lentement (effet aurore boréale)
+        // Cycle principalement entre le bleu (200), le violet (270) et le rose magenta (320)
+        globalHueBase += 0.05;
+        if (globalHueBase > 330) {
+            globalHueBase = 190; // Revient au bleu-turquoise
+        }
+
+        // Gestion du timer du clic
+        if (mouse.isActive) {
+            mouse.timer++;
+            if (mouse.timer > 15) { // L'onde de choc dure 15 frames
+                mouse.isActive = false;
+                mouse.timer = 0;
+            }
+        }
+        
+        // 1. Étoiles de fond
         backgroundStars.forEach(star => {
             star.alpha += star.speed;
             if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
@@ -210,37 +250,28 @@ window.addEventListener('load', () => {
             ctx.fillRect(star.x, star.y, star.size, star.size);
         });
 
-        // 2. Étoiles filantes + Logique d'interaction/remplacement
+        // 2. Étoiles filantes + Remplacement
         addShootingStar();
         shootingStars.forEach((s, index) => {
             s.x += s.speedX;
             s.y += s.speedY;
             
-            // L'étoile filante commence à s'estomper à l'approche de sa zone
             if (s.x > s.targetZoneX - 50) {
                 s.opacity -= 0.04;
             }
 
-            // CRUCIAL : Quand l'étoile filante croise ou dépasse sa zone cible dans le prénom
             if (!s.hasTriggeredSwitch && s.x >= s.targetZoneX && particlesArray.length > 0) {
                 s.hasTriggeredSwitch = true;
-
-                // On filtre les étoiles du prénom qui sont stables et pas déjà en train de partir
                 const activeParticles = particlesArray.filter(p => p.isCaptured && !p.isEjected);
                 
                 if (activeParticles.length > 0) {
-                    // 1. Choisir une étoile au hasard dans le prénom
                     const randomIndex = Math.floor(Math.random() * activeParticles.length);
                     const particleToReplace = activeParticles[randomIndex];
                     
-                    // Stocker ses coordonnées cibles
                     const savedTargetX = particleToReplace.targetX;
                     const savedTargetY = particleToReplace.targetY;
 
-                    // 2. Éjecter l'ancienne étoile (elle tombe et s'en va)
                     particleToReplace.eject();
-
-                    // 3. Injecter immédiatement la nouvelle étoile à sa place exacte
                     particlesArray.push(new Particle(savedTargetX, savedTargetY, true, s.x, s.y));
                 }
             }
@@ -248,7 +279,8 @@ window.addEventListener('load', () => {
             if (s.opacity <= 0 || s.x > canvas.width || s.y > canvas.height) {
                 shootingStars.splice(index, 1);
             } else {
-                ctx.strokeStyle = `rgba(160, 225, 255, ${Math.max(0, s.opacity)})`;
+                // L'étoile filante adopte aussi la couleur de la nébuleuse
+                ctx.strokeStyle = `hsla(${globalHueBase}, 100%, 80%, ${Math.max(0, s.opacity)})`;
                 ctx.lineWidth = 1.8;
                 ctx.beginPath();
                 ctx.moveTo(s.x, s.y);
@@ -257,7 +289,7 @@ window.addEventListener('load', () => {
             }
         });
         
-        // 3. Nettoyage et rendu des étoiles du prénom
+        // 3. Étoiles du prénom
         particlesArray = particlesArray.filter(p => !p.isEjected || p.size > 0);
         particlesArray.forEach(particle => {
             particle.update();
@@ -266,6 +298,25 @@ window.addEventListener('load', () => {
         
         requestAnimationFrame(animate);
     }
+
+    // ÉCOUTEURS D'ÉVÉNEMENTS POUR L'EXPLOSION AU CLIC
+    // Pour PC (Souris)
+    canvas.addEventListener('mousedown', (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.isActive = true;
+        mouse.timer = 0;
+    });
+
+    // Pour Mobile (Tactile)
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 0) {
+            mouse.x = e.touches[0].clientX;
+            mouse.y = e.touches[0].clientY;
+            mouse.isActive = true;
+            mouse.timer = 0;
+        }
+    });
 
     generateBtn.addEventListener('click', () => {
         const inputName = nameInput.value.trim();
