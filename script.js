@@ -6,67 +6,68 @@ window.addEventListener('load', () => {
 
     let particlesArray = [];
     let backgroundStars = [];
-    let activeName = "GAD"; // Nom par défaut
+    let activeName = "G_Frost"; // Prénom par défaut
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         initBackgroundStars();
-        initConstellation(activeName);
+        initStarText(activeName);
     }
 
-    // Étoiles de fond scintillantes
+    // Fond de l'espace subtil
     function initBackgroundStars() {
         backgroundStars = [];
-        const count = Math.min(window.innerWidth * 0.1, 80);
+        const count = Math.min(window.innerWidth * 0.08, 60);
         for (let i = 0; i < count; i++) {
             backgroundStars.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                size: Math.random() * 1.5,
+                size: Math.random() * 1.2,
                 alpha: Math.random(),
-                speed: Math.random() * 0.02 + 0.005
+                speed: Math.random() * 0.01 + 0.003
             });
         }
     }
 
-    // NOUVELLE APPROCHE : Génération directe et proportionnelle des cibles
-    function initConstellation(text) {
+    // Génération pure des lettres par les étoiles
+    function initStarText(text) {
         particlesArray = [];
         if (!text.trim()) return;
 
         const isMobile = canvas.width < 768;
         
-        // Taille de la police 100% responsive (prend une grande partie de l'écran)
-        let fontSize = isMobile ? canvas.width / (text.length * 0.7) : canvas.width / (text.length * 0.9);
-        // Limites pour garder un affichage harmonieux
-        const maxFontSize = isMobile ? 80 : 140;
-        fontSize = Math.min(fontSize, maxFontSize);
+        // TAILLE DYNAMIQUE ET GRANDE : s'adapte parfaitement à l'écran du téléphone
+        let fontSize = isMobile ? (canvas.width / (text.length * 0.65)) : (canvas.width / (text.length * 0.85));
+        
+        // Limites pour éviter que ce soit gigantesque sur PC ou minuscule sur mobile
+        const maxFontSize = isMobile ? 110 : 180;
+        const minFontSize = isMobile ? 65 : 100;
+        fontSize = Math.min(Math.max(fontSize, minFontSize), maxFontSize);
 
-        // Configuration temporaire pour analyser l'emplacement réel du texte
-        ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+        // Utilisation d'une police grasse et standard pour avoir une belle densité d'étoiles
+        ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
         
-        // Positionnement au centre de l'écran (ajusté pour l'interface du bas)
         const textX = canvas.width / 2;
-        const textY = canvas.height * 0.42;
+        // Placé à 35% de la hauteur pour être parfaitement visible au-dessus de l'interface
+        const textY = canvas.height * 0.35; 
 
-        // On dessine le texte en blanc très rapidement pour capturer ses coordonnées réelles
+        // Dessin temporaire pour capturer la forme parfaite des lettres
         ctx.fillStyle = 'white';
         ctx.fillText(text.toUpperCase(), textX, textY);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // On efface immédiatement pour ne garder que le fond noir
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // On efface le texte blanc immédiatement
 
-        // Écartement des étoiles pour que le tracé soit aéré et pur
-        const gap = isMobile ? 9 : 14;
+        // Ajustement de la distance entre les étoiles pour que les lettres soient denses et nettes
+        const gap = isMobile ? 6 : 10;
 
-        // Parcours de la zone réelle de ton écran
         for (let y = 0; y < canvas.height; y += gap) {
             for (let x = 0; x < canvas.width; x += gap) {
                 const index = (y * canvas.width + x) * 4;
                 if (imageData.data[index + 3] > 128) {
-                    // On crée l'étoile à sa position cible directe sur ton écran
+                    // On crée une particule-étoile pour ce point précis
                     particlesArray.push(new Particle(x, y));
                 }
             }
@@ -75,37 +76,39 @@ window.addEventListener('load', () => {
 
     class Particle {
         constructor(targetX, targetY) {
-            // Effet d'arrivée fluide depuis la gauche de l'écran
-            this.x = -40 - (Math.random() * 500);
+            // Les étoiles arrivent de la gauche avec un effet de vélocité cosmique
+            this.x = -20 - (Math.random() * 400);
             this.y = Math.random() * canvas.height;
             
             this.targetX = targetX;
             this.targetY = targetY;
             
-            this.vx = Math.random() * 6 + 5;
+            this.vx = Math.random() * 7 + 5; 
             this.vy = (Math.random() * 2 - 1) * 0.2;
             
-            // Profondeur des étoiles (grosses et petites)
+            // Look des étoiles : un mix de petites et de moyennes pour créer du relief
             const rand = Math.random();
-            if (rand > 0.88) {
-                this.size = Math.random() * 2.2 + 2.0; // Étoiles repères lumineuses
-                this.brightness = 85;
+            if (rand > 0.80) {
+                this.size = Math.random() * 2.0 + 1.6; // Étoiles brillantes de contour
+                this.brightness = Math.random() * 10 + 85; 
             } else {
-                this.size = Math.random() * 0.8 + 0.6; // Étoiles fines de connexion
-                this.brightness = 65;
+                this.size = Math.random() * 1.0 + 0.5; // Étoiles fines de remplissage
+                this.brightness = Math.random() * 15 + 65;
             }
             
-            this.hue = Math.random() * 20 + 195; // Teintes bleu néon
-            this.ease = Math.random() * 0.06 + 0.03; // Vitesse de stabilisation
+            // Teinte bleue/cyan lumineuse (effet néon cosmique)
+            this.hue = Math.random() * 20 + 195; 
+            this.ease = Math.random() * 0.05 + 0.03; // Vitesse d'assemblage fluide
             this.isCaptured = false;
         }
 
         update() {
-            if (!this.isCaptured && this.x >= this.targetX - 100) {
+            if (!this.isCaptured && this.x >= this.targetX - 80) {
                 this.isCaptured = true;
             }
 
             if (this.isCaptured) {
+                // Guidage parfait vers la cible sans tremblement (Pas de Jitter)
                 this.x += (this.targetX - this.x) * this.ease;
                 this.y += (this.targetY - this.y) * this.ease;
             } else {
@@ -116,52 +119,26 @@ window.addEventListener('load', () => {
 
         draw() {
             ctx.fillStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, 1)`;
-            ctx.shadowBlur = (this.isCaptured && this.size > 1.8) ? 8 : 0;
-            ctx.shadowColor = `hsl(${this.hue}, 100%, 65%)`;
+            
+            // Bel effet de lueur cosmique uniquement pour les étoiles principales stabilisées
+            ctx.shadowBlur = (this.isCaptured && this.size > 1.5) ? 10 : 0;
+            ctx.shadowColor = `hsl(${this.hue}, 100%, 70%)`;
             
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.closePath();
             ctx.fill();
-            ctx.shadowBlur = 0;
-        }
-    }
-
-    function connectParticles() {
-        const maxDistance = canvas.width < 768 ? 50 : 40;
-        
-        for (let a = 0; a < particlesArray.length; a++) {
-            if (!particlesArray[a].isCaptured) continue;
-            let connections = 0;
-
-            for (let b = a + 1; b < particlesArray.length; b++) {
-                if (!particlesArray[b].isCaptured) continue;
-                if (connections >= 2) break; // Maximum 2 lignes par étoile pour un effet épuré
-
-                let dx = particlesArray[a].x - particlesArray[b].x;
-                let dy = particlesArray[a].y - particlesArray[b].y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance < maxDistance) {
-                    connections++;
-                    let opacity = (1 - (distance / maxDistance)) * 0.35;
-                    ctx.strokeStyle = `rgba(212, 175, 55, ${opacity})`;
-                    ctx.lineWidth = 0.7;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                    ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
-                    ctx.stroke();
-                    ctx.closePath();
-                }
-            }
+            
+            ctx.shadowBlur = 0; // Reset pour ne pas alourdir le processeur mobile
         }
     }
 
     function animate() {
-        ctx.fillStyle = 'rgba(6, 6, 14, 0.24)';
+        // Traînée de mouvement propre (effet de fondu noir)
+        ctx.fillStyle = 'rgba(6, 6, 14, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
+        // Rendu des étoiles de fond
         backgroundStars.forEach(star => {
             star.alpha += star.speed;
             if (star.alpha > 1 || star.alpha < 0) star.speed = -star.speed;
@@ -169,12 +146,12 @@ window.addEventListener('load', () => {
             ctx.fillRect(star.x, star.y, star.size, star.size);
         });
         
+        // Rendu des étoiles du prénom (sans AUCUNE ligne dorée)
         particlesArray.forEach(particle => {
             particle.update();
             particle.draw();
         });
         
-        connectParticles();
         requestAnimationFrame(animate);
     }
 
@@ -182,7 +159,7 @@ window.addEventListener('load', () => {
         const inputName = nameInput.value.trim();
         if (inputName.length > 0) {
             activeName = inputName;
-            initConstellation(activeName);
+            initStarText(activeName);
         }
     });
 
