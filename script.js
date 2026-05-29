@@ -6,191 +6,147 @@ window.addEventListener('load', () => {
 
     let particlesArray = [];
     let backgroundStars = [];
-    let targetPoints = [];
-    let activeName = "G_Frost"; // Prénom par défaut
+    let activeName = "GAD"; // Nom par défaut
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         initBackgroundStars();
-        initNameMatrix(activeName);
-        setupConstellation();
+        initConstellation(activeName);
     }
 
-    // Poussière cosmique en arrière-plan
+    // Étoiles de fond scintillantes
     function initBackgroundStars() {
         backgroundStars = [];
-        const numberOfBackgroundStars = Math.min(window.innerWidth * 0.1, 100);
-        for (let i = 0; i < numberOfBackgroundStars; i++) {
+        const count = Math.min(window.innerWidth * 0.1, 80);
+        for (let i = 0; i < count; i++) {
             backgroundStars.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
-                size: Math.random() * 1.2,
+                size: Math.random() * 1.5,
                 alpha: Math.random(),
-                speed: Math.random() * 0.01 + 0.005
+                speed: Math.random() * 0.02 + 0.005
             });
         }
     }
 
-    // Moteur de scan ultra-épuré et aéré
-    function initNameMatrix(text) {
-        targetPoints = [];
+    // NOUVELLE APPROCHE : Génération directe et proportionnelle des cibles
+    function initConstellation(text) {
+        particlesArray = [];
         if (!text.trim()) return;
 
-        // Résolution virtuelle stable pour éviter toute distorsion Y
-        const vWidth = 1920;
-        const vHeight = 1080;
+        const isMobile = canvas.width < 768;
+        
+        // Taille de la police 100% responsive (prend une grande partie de l'écran)
+        let fontSize = isMobile ? canvas.width / (text.length * 0.7) : canvas.width / (text.length * 0.9);
+        // Limites pour garder un affichage harmonieux
+        const maxFontSize = isMobile ? 80 : 140;
+        fontSize = Math.min(fontSize, maxFontSize);
 
-        const memCanvas = document.createElement('canvas');
-        const memCtx = memCanvas.getContext('2d');
-        memCanvas.width = vWidth;
-        memCanvas.height = vHeight;
+        // Configuration temporaire pour analyser l'emplacement réel du texte
+        ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
         
-        // Taille adaptée à la longueur pour que ça reste imposant sans déborder
-        let baseSize = vWidth * 0.16;
-        if (text.length > 5) {
-            baseSize = baseSize * (5 / text.length);
-        }
-        const fontSize = Math.max(baseSize, 90);
-        
-        memCtx.fillStyle = 'white';
-        // CHANGEMENT MAJEUR : On utilise une police serif fine (style constellation) non-grasse
-        memCtx.font = `${fontSize}px 'Courier New', Georgia, serif`;
-        memCtx.textBaseline = 'middle';
-        memCtx.textAlign = 'center';
-        
-        memCtx.fillText(text.toUpperCase(), vWidth / 2, vHeight / 2);
-        
-        const imageData = memCtx.getImageData(0, 0, vWidth, vHeight);
-        
-        // CHANGEMENT MAJEUR : Un très grand GAP pour espacer au maximum les étoiles
-        const isMobile = window.innerWidth < 768;
-        const gap = isMobile ? 32 : 26; 
+        // Positionnement au centre de l'écran (ajusté pour l'interface du bas)
+        const textX = canvas.width / 2;
+        const textY = canvas.height * 0.42;
 
-        // Facteur d'échelle pour l'écran réel
-        const scale = isMobile ? (canvas.width * 0.9) / vWidth : (canvas.width * 0.75) / vWidth;
-        
-        const offsetX = (canvas.width - (vWidth * scale)) / 2;
-        const offsetY = (canvas.height - (vHeight * scale)) * 0.38; // Surélevé pour l'interface
+        // On dessine le texte en blanc très rapidement pour capturer ses coordonnées réelles
+        ctx.fillStyle = 'white';
+        ctx.fillText(text.toUpperCase(), textX, textY);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // On efface immédiatement pour ne garder que le fond noir
 
-        for (let y = 0; y < vHeight; y += gap) {
-            for (let x = 0; x < vWidth; x += gap) {
-                const index = (y * vWidth + x) * 4;
+        // Écartement des étoiles pour que le tracé soit aéré et pur
+        const gap = isMobile ? 9 : 14;
+
+        // Parcours de la zone réelle de ton écran
+        for (let y = 0; y < canvas.height; y += gap) {
+            for (let x = 0; x < canvas.width; x += gap) {
+                const index = (y * canvas.width + x) * 4;
                 if (imageData.data[index + 3] > 128) {
-                    // Positions pures sans Jitter pour préserver la clarté du tracé
-                    const realX = x * scale + offsetX;
-                    const realY = y * scale + offsetY;
-                    
-                    targetPoints.push({ x: realX, y: realY });
+                    // On crée l'étoile à sa position cible directe sur ton écran
+                    particlesArray.push(new Particle(x, y));
                 }
             }
         }
     }
 
     class Particle {
-        constructor(targetX, targetY, isExtra = false) {
-            this.x = -50 - (Math.random() * 600); 
+        constructor(targetX, targetY) {
+            // Effet d'arrivée fluide depuis la gauche de l'écran
+            this.x = -40 - (Math.random() * 500);
             this.y = Math.random() * canvas.height;
             
             this.targetX = targetX;
             this.targetY = targetY;
-            this.isExtra = isExtra;
             
-            this.vx = Math.random() * 5 + 4; 
-            this.vy = (Math.random() * 2 - 1) * 0.1;
+            this.vx = Math.random() * 6 + 5;
+            this.vy = (Math.random() * 2 - 1) * 0.2;
             
-            // Étoiles plus fines pour un rendu élégant
+            // Profondeur des étoiles (grosses et petites)
             const rand = Math.random();
-            if (rand > 0.85) {
-                this.size = Math.random() * 2.0 + 1.8; // Étoiles repères lumineuses
-                this.brightness = 85; 
+            if (rand > 0.88) {
+                this.size = Math.random() * 2.2 + 2.0; // Étoiles repères lumineuses
+                this.brightness = 85;
             } else {
-                this.size = Math.random() * 0.8 + 0.6; // Étoiles de structure très discrètes
+                this.size = Math.random() * 0.8 + 0.6; // Étoiles fines de connexion
                 this.brightness = 65;
             }
             
-            this.hue = Math.random() * 20 + 195; // Cyan/Bleu cosmique
-            this.life = 1;
-            this.ease = Math.random() * 0.05 + 0.03; 
+            this.hue = Math.random() * 20 + 195; // Teintes bleu néon
+            this.ease = Math.random() * 0.06 + 0.03; // Vitesse de stabilisation
             this.isCaptured = false;
         }
-        
+
         update() {
-            if (this.isExtra) {
+            if (!this.isCaptured && this.x >= this.targetX - 100) {
+                this.isCaptured = true;
+            }
+
+            if (this.isCaptured) {
+                this.x += (this.targetX - this.x) * this.ease;
+                this.y += (this.targetY - this.y) * this.ease;
+            } else {
                 this.x += this.vx;
                 this.y += this.vy;
-                if (this.x > canvas.width + 50) {
-                    this.x = -50;
-                    this.y = Math.random() * canvas.height;
-                }
-            } else {
-                if (this.x >= this.targetX - 100) {
-                    this.isCaptured = true;
-                }
-                
-                if (this.isCaptured) {
-                    let dx = this.targetX - this.x;
-                    let dy = this.targetY - this.y;
-                    this.x += dx * this.ease;
-                    this.y += dy * this.ease;
-                } else {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                }
             }
         }
-        
+
         draw() {
-            ctx.fillStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.life})`;
-            
-            // Effet lueur uniquement sur les étoiles majeures pour garder la netteté
-            ctx.shadowBlur = (this.isCaptured && this.size > 1.7) ? 8 : 0;
+            ctx.fillStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, 1)`;
+            ctx.shadowBlur = (this.isCaptured && this.size > 1.8) ? 8 : 0;
             ctx.shadowColor = `hsl(${this.hue}, 100%, 65%)`;
             
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.closePath();
             ctx.fill();
-            
             ctx.shadowBlur = 0;
         }
     }
 
-    function setupConstellation() {
-        particlesArray = [];
-        targetPoints.forEach(point => {
-            particlesArray.push(new Particle(point.x, point.y, false));
-        });
-        
-        // Moins d'étoiles de passage pour purifier la scène
-        const extraCount = Math.min(targetPoints.length * 0.15, 40);
-        for(let i = 0; i < extraCount; i++) {
-            particlesArray.push(new Particle(0, 0, true));
-        }
-    }
-
     function connectParticles() {
-        // On augmente la distance max car les étoiles sont plus éloignées les unes des autres
-        const maxDistance = window.innerWidth < 768 ? 65 : 55; 
+        const maxDistance = canvas.width < 768 ? 50 : 40;
         
         for (let a = 0; a < particlesArray.length; a++) {
-            if (particlesArray[a].isExtra || !particlesArray[a].isCaptured) continue;
-            
+            if (!particlesArray[a].isCaptured) continue;
             let connections = 0;
-            
+
             for (let b = a + 1; b < particlesArray.length; b++) {
-                if (particlesArray[b].isExtra || !particlesArray[b].isCaptured) continue;
-                if (connections >= 2) break; // Maximum 2 liens pour un effet filaire géométrique épuré
-                
+                if (!particlesArray[b].isCaptured) continue;
+                if (connections >= 2) break; // Maximum 2 lignes par étoile pour un effet épuré
+
                 let dx = particlesArray[a].x - particlesArray[b].x;
                 let dy = particlesArray[a].y - particlesArray[b].y;
                 let distance = Math.sqrt(dx * dx + dy * dy);
-                
+
                 if (distance < maxDistance) {
                     connections++;
                     let opacity = (1 - (distance / maxDistance)) * 0.35;
                     ctx.strokeStyle = `rgba(212, 175, 55, ${opacity})`;
-                    ctx.lineWidth = 0.7; // Ligne fine dorée
+                    ctx.lineWidth = 0.7;
                     
                     ctx.beginPath();
                     ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
@@ -203,7 +159,7 @@ window.addEventListener('load', () => {
     }
 
     function animate() {
-        ctx.fillStyle = 'rgba(6, 6, 14, 0.22)';
+        ctx.fillStyle = 'rgba(6, 6, 14, 0.24)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         backgroundStars.forEach(star => {
@@ -226,8 +182,7 @@ window.addEventListener('load', () => {
         const inputName = nameInput.value.trim();
         if (inputName.length > 0) {
             activeName = inputName;
-            initNameMatrix(activeName);
-            setupConstellation();
+            initConstellation(activeName);
         }
     });
 
