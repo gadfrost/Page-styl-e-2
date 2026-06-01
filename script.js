@@ -7,7 +7,7 @@ window.addEventListener('load', () => {
     let particlesArray = [];
     let backgroundStars = [];
     let shootingStars = []; 
-    let activeName = "G_Frost"; 
+    let activeName = "GAD"; 
 
     let mouse = {
         x: null,
@@ -17,12 +17,8 @@ window.addEventListener('load', () => {
         timer: 0
     };
 
-    // LOGIQUE TECHNIQUE DES COULEURS :
-    // Le spectre HSL va de 0 à 360. 
-    // Pour changer visiblement de couleur toutes les 2 secondes (à 60 images par seconde),
-    // on augmente la teinte d'environ 2.5 à 3 unités par seconde.
     let globalHueBase = 0; 
-    const hueSpeed = 0.05; // Vitesse fluide et constante pour voir le changement toutes les 2s
+    const hueSpeed = 0.5; // Vitesse de changement de couleur des étoiles
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -33,14 +29,14 @@ window.addEventListener('load', () => {
 
     function initBackgroundStars() {
         backgroundStars = [];
-        const count = Math.min(window.innerWidth * 0.2, 180);
+        const count = Math.min(window.innerWidth * 0.1, 100); // Nombre d'étoiles de fond raisonnable
         for (let i = 0; i < count; i++) {
             backgroundStars.push({
                 x: Math.random() * canvas.width,
                 y: Math.random() * canvas.height,
                 size: Math.random() * 1.5 + 0.3,
                 alpha: Math.random() * 0.8 + 0.2,
-                speed: Math.random() * 0.015 + 0.005
+                speed: Math.random() * 0.01 + 0.003
             });
         }
     }
@@ -64,34 +60,48 @@ window.addEventListener('load', () => {
         }
     }
 
+    // CORRECTION MAJEURE : Utilisation d'un canvas invisible pour scanner le texte sans bugger l'écran
     function initStarText(text) {
+        // 1. Vider STRICTEMENT le tableau pour éviter l'accumulation infinie
         particlesArray = [];
         if (!text.trim()) return;
 
         const isMobile = canvas.width < 768;
         let fontSize = isMobile ? (canvas.width / (text.length * 0.65)) : (canvas.width / (text.length * 0.85));
         
-        const maxFontSize = isMobile ? 110 : 180;
-        const minFontSize = isMobile ? 65 : 100;
+        const maxFontSize = isMobile ? 110 : 160;
+        const minFontSize = isMobile ? 65 : 90;
         fontSize = Math.min(Math.max(fontSize, minFontSize), maxFontSize);
 
-        ctx.font = `bold ${fontSize}px sans-serif`;
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
+        // 2. Création du canvas virtuel en mémoire
+        const textCanvas = document.createElement('canvas');
+        textCanvas.width = canvas.width;
+        textCanvas.height = canvas.height;
+        const textCtx = textCanvas.getContext('2d');
+
+        // Configuration de la police sur le canvas virtuel
+        textCtx.font = `bold ${fontSize}px sans-serif`;
+        textCtx.textBaseline = 'middle';
+        textCtx.textAlign = 'center';
         
-        const textX = canvas.width / 2;
-        const textY = canvas.height * 0.35; 
+        const textX = textCanvas.width / 2;
+        const textY = textCanvas.height * 0.35; 
 
-        ctx.fillStyle = 'white';
-        ctx.fillText(text.toUpperCase(), textX, textY);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Dessin du texte uniquement sur le canvas invisible
+        textCtx.fillStyle = 'white';
+        textCtx.fillText(text.toUpperCase(), textX, textY);
+        
+        // Capture des données de pixels du canvas invisible
+        const imageData = textCtx.getImageData(0, 0, textCanvas.width, textCanvas.height);
 
-        const gap = isMobile ? 7 : 11;
+        // Espacement des étoiles (plus large sur PC pour éviter la surcharge)
+        const gap = isMobile ? 7 : 12;
 
-        for (let y = 0; y < canvas.height; y += gap) {
-            for (let x = 0; x < canvas.width; x += gap) {
-                const index = (y * canvas.width + x) * 4;
+        // Échantillonnage des pixels
+        for (let y = 0; y < textCanvas.height; y += gap) {
+            for (let x = 0; x < textCanvas.width; x += gap) {
+                const index = (y * textCanvas.width + x) * 4;
+                // Si le pixel est blanc (opacité > 128), on place une étoile
                 if (imageData.data[index + 3] > 128) {
                     particlesArray.push(new Particle(x, y));
                 }
@@ -127,7 +137,6 @@ window.addEventListener('load', () => {
                 this.isBright = false;
             }
             
-            // Un petit décalage pour que toutes les étoiles ne soient pas strictement identiques
             this.hueOffset = Math.random() * 20 - 10; 
             this.ease = fromShootingStar ? 0.08 : (Math.random() * 0.05 + 0.03); 
             
@@ -203,7 +212,6 @@ window.addEventListener('load', () => {
                 currentGlow = 8 + Math.sin(this.glowPulse) * 4;
             }
 
-            // MODIFICATION ICI : On applique le cycle complet de 0 à 360 degrés
             let currentHue = (globalHueBase + this.hueOffset) % 360;
 
             ctx.fillStyle = `hsla(${currentHue}, 100%, ${this.isBright ? 88 : 70}%, ${currentAlpha})`;
@@ -223,10 +231,10 @@ window.addEventListener('load', () => {
     }
 
     function animate() {
+        // Efface proprement le canvas d'affichage à chaque frame
         ctx.fillStyle = 'rgba(6, 6, 14, 0.25)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        // MODIFICATION ICI : Rythme accéléré et progressif sur TOUT l'arc-en-ciel
         globalHueBase += hueSpeed;
         if (globalHueBase >= 360) {
             globalHueBase = 0; 
