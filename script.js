@@ -7,7 +7,7 @@ window.addEventListener('load', () => {
     let particlesArray = [];
     let backgroundStars = [];
     let shootingStars = []; 
-    let activeName = "GAD"; 
+    let activeName = "G_frost"; 
 
     let mouse = {
         x: null,
